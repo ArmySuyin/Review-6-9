@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mastery in Reading 3 - Game Show Board</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600;700;800&family=Prompt:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- PeerJS for P2P Networking -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- QRCode.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Kanit', 'Prompt', 'sans-serif'],
+                    },
+                    colors: {
+                        gold: {
+                            300: '#fde047',
+                            400: '#facc15',
+                            500: '#eab308',
+                            600: '#ca8a04',
+                        }
+                    },
+                    animation: {
+                        'pulse-fast': 'pulse 0.8s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'bounce-short': 'bounce 0.5s ease-in-out 2',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: radial-gradient(circle at center, #1e1b4b 0%, #0f172a 100%);
+            min-height: 100vh;
+            color: #f8fafc;
+            user-select: none;
+        }
+        .tile-card {
+            perspective: 1000px;
+            transition: all 0.3s ease;
+        }
+        .tile-card:hover:not(.opened) {
+            transform: translateY(-4px) scale(1.03);
+            box-shadow: 0 10px 25px -5px rgba(234, 179, 8, 0.4);
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .buzzer-btn {
+            box-shadow: 0 12px 0 #991b1b, 0 15px 25px rgba(0,0,0,0.5);
+            transition: all 0.1s ease;
+        }
+        .buzzer-btn:active:not(:disabled) {
+            transform: translateY(8px);
+            box-shadow: 0 4px 0 #991b1b, 0 5px 10px rgba(0,0,0,0.5);
+        }
+        .glow-text {
+            text-shadow: 0 0 15px rgba(250, 204, 21, 0.6);
+        }
+    </style>
+</head>
+<body class="font-sans text-slate-100 flex flex-col justify-between min-h-screen">
+
+    <!-- TOP NAVIGATION BAR -->
+    <header class="w-full glass-panel border-b border-slate-700/50 px-4 py-3 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-gradient-to-tr from-amber-500 to-yellow-300 p-2 rounded-xl text-slate-900 shadow-lg">
+                    <i data-lucide="trophy" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg md:text-xl font-extrabold tracking-wide bg-gradient-to-r from-yellow-300 via-amber-200 to-white bg-clip-text text-transparent">
+                        MASTERY IN READING 3 - QUIZ SHOW
+                    </h1>
+                    <p class="text-xs text-slate-400">เกมตอบคำถามเปิดแผ่นป้าย 100 - 1,000 คะแนน (Units 6-9)</p>
+                </div>
+            </div>
+            
+            <div id="role-badge-container" class="flex items-center gap-2">
+                <!-- Dynamic status badges inserted via JS -->
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <main class="flex-grow max-w-7xl w-full mx-auto p-4 md:p-6 flex flex-col justify-center">
+
+        <!-- SCREEN 1: MODE SELECTION (Home) -->
+        <section id="screen-welcome" class="space-y-8 my-auto">
+            <div class="text-center space-y-4">
+                <span class="px-4 py-1.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 text-sm font-semibold tracking-wide uppercase">
+                    Interactive Classroom Game
+                </span>
+                <h2 class="text-4xl md:text-6xl font-black text-white glow-text tracking-tight">
+                    เปิดแผ่นป้ายประลองความรู้
+                </h2>
+                <p class="text-slate-300 text-lg max-w-2xl mx-auto">
+                    เลือกระดับคะแนน 100 - 1,000 คะแนน แย่งกันกด Buzzer ตอบคำถามภาษาอังกฤษจาก Units 6-9 สะสมคะแนนเพื่อคว้าชัยชนะ!
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+                <!-- Host Option -->
+                <div onclick="selectRole('host')" class="glass-panel p-8 rounded-2xl border border-slate-700 hover:border-amber-400/60 cursor-pointer transition-all hover:scale-105 group flex flex-col justify-between">
+                    <div class="space-y-4">
+                        <div class="w-14 h-14 bg-amber-500/20 rounded-2xl flex items-center justify-center text-amber-400 group-hover:bg-amber-500 group-hover:text-slate-950 transition-colors">
+                            <i data-lucide="presentation" class="w-8 h-8"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold text-white">ฝั่งครูผู้สอน (Host Control)</h3>
+                        <p class="text-slate-400 text-sm leading-relaxed">
+                            เปิดหน้าจอนี้ขึ้นจอใหญ่/โปรเจกเตอร์ สร้างห้อง ควบคุมเกม เปิดแผ่นป้าย ตรวจคะแนน และแสดง QR Code ให้นักเรียนเข้าร่วม
+                        </p>
+                    </div>
+                    <button class="mt-6 w-full py-3 bg-amber-500 group-hover:bg-amber-400 text-slate-950 font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg">
+                        <span>สร้างห้องควบคุมเกม</span>
+                        <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                    </button>
+                </div>
+
+                <!-- Player Option -->
+                <div onclick="selectRole('student')" class="glass-panel p-8 rounded-2xl border border-slate-700 hover:border-indigo-400/60 cursor-pointer transition-all hover:scale-105 group flex flex-col justify-between">
+                    <div class="space-y-4">
+                        <div class="w-14 h-14 bg-indigo-500/20 rounded-2xl flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+                            <i data-lucide="gamepad-2" class="w-8 h-8"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold text-white">ฝั่งนักเรียน (Player Buzzer)</h3>
+                        <p class="text-slate-400 text-sm leading-relaxed">
+                            เข้าร่วมเล่นเกมผ่านมือถือหรือแท็บเล็ต เลือกทีมของตนเอง เพื่อรับหน้าที่เป็นปุ่มกดแย่งตอบ (Buzzer) แบบ Real-time!
+                        </p>
+                    </div>
+                    <button class="mt-6 w-full py-3 bg-indigo-600 group-hover:bg-indigo-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg">
+                        <span>เข้าร่วมเป็นผู้เล่น</span>
+                        <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- SCREEN 2: HOST SETUP (Room & Teams) -->
+        <section id="screen-host-setup" class="hidden space-y-6 max-w-4xl mx-auto w-full">
+            <!-- Warning Banner if Local File Protocol Detected -->
+            <div id="local-file-warning" class="hidden bg-amber-500/20 border border-amber-500/50 rounded-2xl p-4 text-amber-200 text-xs leading-relaxed space-y-1">
+                <div class="flex items-center gap-2 font-bold text-amber-300 text-sm">
+                    <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+                    ข้อแนะนำสำหรับการเชื่อมต่อข้ามอุปกรณ์ (Mobile to PC):
+                </div>
+                <p>
+                    ท่านกำลังเปิดไฟล์จากคอมพิวเตอร์โดยตรง (`file://`) ซึ่งมือถือนักเรียนจะสแกนเข้าไม่ได้หากไม่มี Web Server 
+                    <strong>แนะนำ:</strong> อัปโหลดไฟล์นี้ขึ้น GitHub Pages, Vercel หรือใช้โปรแกรม Live Server หรือป้อน IP วง LAN ของครูในช่อง URL กำหนดเองด้านล่าง เพื่อให้นักเรียนสแกนผ่าน WiFi เดียวกันได้
+                </p>
+            </div>
+
+            <div class="glass-panel p-6 rounded-2xl space-y-6">
+                <div class="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-slate-700/60 pb-5">
+                    <div>
+                        <h2 class="text-2xl font-bold text-amber-400">ตั้งค่าห้องเรียนและทีมแข่งขัน</h2>
+                        <p class="text-slate-400 text-sm">กำหนดจำนวนทีม และให้นักเรียนสแกนเข้าร่วมห้อง</p>
+                    </div>
+                    <div class="flex items-center gap-3 bg-slate-800/80 px-4 py-2 rounded-xl border border-slate-700">
+                        <span class="text-xs text-slate-400">รหัสห้อง (Room Code):</span>
+                        <span id="display-room-code" class="text-xl font-mono font-black text-amber-300 tracking-wider">กำลังสร้าง...</span>
+                        <button onclick="copyRoomLink()" class="p-1.5 hover:bg-slate-700 rounded-lg text-slate-300" title="คัดลอกลิงก์">
+                            <i data-lucide="copy" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                    <!-- QR Code Display & Custom Base URL Config -->
+                    <div class="flex flex-col items-center justify-center p-6 bg-slate-900/60 rounded-xl border border-slate-700/80 space-y-3">
+                        <div id="qrcode-container" class="bg-white p-3 rounded-xl shadow-inner"></div>
+                        <p class="text-xs text-slate-400 text-center">ให้นักเรียนใช้กล้องมือถือสแกน QR Code นี้</p>
+                        
+                        <!-- Custom Base URL Field for Advanced LAN Setup -->
+                        <div class="w-full pt-2 border-t border-slate-800">
+                            <label class="block text-[11px] font-semibold text-slate-400 mb-1">
+                                Web Address / IP สำหรับสร้าง QR Code:
+                            </label>
+                            <input type="text" id="custom-base-url" oninput="generateQRCode()" placeholder="เช่น https://yourdomain.com หรือ http://192.168.1.10:5500" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-amber-300 font-mono focus:outline-none focus:border-amber-400">
+                        </div>
+                    </div>
+
+                    <!-- Team Management -->
+                    <div class="space-y-4">
+                        <label class="block text-sm font-semibold text-slate-200">จัดการทีมแข่งขัน (ไม่จำกัดทีม):</label>
+                        <div id="teams-setup-list" class="space-y-2 max-h-56 overflow-y-auto pr-1">
+                            <!-- Dynamic Team Items -->
+                        </div>
+
+                        <div class="flex gap-2">
+                            <input type="text" id="input-new-team" placeholder="ชื่อทีมใหม่..." class="flex-grow bg-slate-900/80 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-amber-400">
+                            <button onclick="addTeamFromSetup()" class="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 font-semibold rounded-xl text-sm flex items-center gap-1">
+                                <i data-lucide="plus" class="w-4 h-4"></i> เพิ่มทีม
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center pt-4 border-t border-slate-700/60">
+                    <button onclick="location.reload()" class="px-4 py-2.5 text-slate-400 hover:text-white text-sm font-semibold">
+                        &larr; ย้อนกลับ
+                    </button>
+                    <button onclick="startHostGame()" class="px-8 py-3.5 bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black rounded-xl text-lg shadow-xl shadow-amber-500/20 flex items-center gap-2">
+                        <i data-lucide="play" class="w-5 h-5 fill-slate-950"></i> เริ่มเกมกระดานแผ่นป้าย!
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- SCREEN 3: HOST GAME BOARD (Jeopardy Grid & Scoreboard) -->
+        <section id="screen-host-board" class="hidden space-y-6">
+            <!-- Top Score Panel -->
+            <div id="scoreboard-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                <!-- Dynamic Teams Score Cards -->
+            </div>
+
+            <!-- Main Jeopardy Grid -->
+            <div class="glass-panel p-4 md:p-6 rounded-2xl space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-700/60 pb-3">
+                    <h3 class="text-xl font-bold text-amber-400 flex items-center gap-2">
+                        <i data-lucide="grid" class="w-5 h-5"></i> กระดานเลือกแผ่นป้ายคะแนน (Units 6 - 9)
+                    </h3>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs text-slate-400">นักเรียนเชื่อมต่อ: <span id="connected-count" class="text-amber-400 font-bold">0</span> คน</span>
+                        <span id="sandbox-mode-badge" class="hidden text-xs px-2.5 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-lg">
+                            ⚡ Local Network Mode
+                        </span>
+                        <button onclick="toggleOfflineBuzzerModal()" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg border border-slate-700">
+                            ⚡ กดตอบบนจอนี้ / ปุ่มคีย์บอร์ด (1-4)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Unit Columns Header & Points Matrix -->
+                <div class="overflow-x-auto">
+                    <div class="min-w-[700px]">
+                        <!-- Unit Headers -->
+                        <div class="grid grid-cols-4 gap-3 mb-3 text-center">
+                            <div class="bg-indigo-950/80 border border-indigo-700/50 p-3 rounded-xl">
+                                <span class="text-xs text-indigo-300 font-semibold uppercase block">UNIT 6</span>
+                                <h4 class="text-sm font-bold text-white truncate">Hijacker</h4>
+                            </div>
+                            <div class="bg-emerald-950/80 border border-emerald-700/50 p-3 rounded-xl">
+                                <span class="text-xs text-emerald-300 font-semibold uppercase block">UNIT 7</span>
+                                <h4 class="text-sm font-bold text-white truncate">Death by Poison</h4>
+                            </div>
+                            <div class="bg-purple-950/80 border border-purple-700/50 p-3 rounded-xl">
+                                <span class="text-xs text-purple-300 font-semibold uppercase block">UNIT 8</span>
+                                <h4 class="text-sm font-bold text-white truncate">Great Train Robber</h4>
+                            </div>
+                            <div class="bg-amber-950/80 border border-amber-700/50 p-3 rounded-xl">
+                                <span class="text-xs text-amber-300 font-semibold uppercase block">UNIT 9</span>
+                                <h4 class="text-sm font-bold text-white truncate">Nelson Mandela</h4>
+                            </div>
+                        </div>
+
+                        <!-- Tiles Grid (100 to 1,000 Points Rows) -->
+                        <div id="jeopardy-tiles-grid" class="space-y-3">
+                            <!-- Dynamic Tiles generated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SCREEN 4: STUDENT BUZZER SCREEN -->
+        <section id="screen-student" class="hidden max-w-md mx-auto w-full my-auto space-y-6">
+            <!-- Student Login / Setup Form -->
+            <div id="student-join-box" class="glass-panel p-6 rounded-2xl space-y-5">
+                <div class="text-center space-y-2">
+                    <div class="w-12 h-12 bg-indigo-500/20 text-indigo-400 mx-auto rounded-xl flex items-center justify-center">
+                        <i data-lucide="wifi" class="w-6 h-6"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-white">เข้าร่วมห้องเรียน</h2>
+                    <p class="text-slate-400 text-xs">กรอกรหัสห้องและเลือกทีมของคุณเพื่อใช้กด Buzzer</p>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">รหัสห้อง (Room Code):</label>
+                        <input type="text" id="student-room-input" placeholder="เช่น M1234" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 font-mono text-center text-xl font-bold uppercase text-amber-300 focus:outline-none focus:border-amber-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">เลือกทีมของคุณ:</label>
+                        <select id="student-team-select" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-indigo-400">
+                            <!-- Options dynamically populated or custom -->
+                        </select>
+                    </div>
+                    <div id="custom-team-input-container" class="hidden">
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">หรือระบุชื่อทีมใหม่:</label>
+                        <input type="text" id="student-custom-team" placeholder="พิมพ์ชื่อทีม..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-400">
+                    </div>
+                </div>
+
+                <div id="student-connect-error" class="hidden text-xs bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-xl p-3 text-center">
+                    <!-- Error notice if connection fails -->
+                </div>
+
+                <button onclick="connectStudentToHost()" class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 font-bold rounded-xl text-white shadow-lg flex items-center justify-center gap-2">
+                    <span>เชื่อมต่อเข้าห้องเรียน</span>
+                    <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Student Active Buzzer Button View -->
+            <div id="student-buzzer-box" class="hidden glass-panel p-6 rounded-2xl space-y-6 text-center">
+                <div class="flex items-center justify-between border-b border-slate-700/60 pb-3">
+                    <div class="flex items-center gap-2">
+                        <span id="student-team-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-indigo-500 text-white">
+                            ทีมของคุณ
+                        </span>
+                    </div>
+                    <span id="student-connection-status" class="text-xs text-emerald-400 font-medium flex items-center gap-1">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> เชื่อมต่อสำเร็จ
+                    </span>
+                </div>
+
+                <!-- Status Message Display -->
+                <div id="student-status-text" class="text-slate-300 font-semibold text-sm h-12 flex items-center justify-center bg-slate-900/50 rounded-xl px-3 border border-slate-800">
+                    รอครูเปิดแผ่นป้ายคำถาม...
+                </div>
+
+                <!-- BIG BUZZER BUTTON -->
+                <div class="py-4">
+                    <button id="main-buzzer-btn" onclick="triggerStudentBuzz()" disabled class="buzzer-btn w-56 h-56 mx-auto rounded-full bg-gradient-to-tr from-red-600 to-rose-500 disabled:from-slate-700 disabled:to-slate-800 disabled:shadow-none border-4 border-red-400/40 disabled:border-slate-600 flex flex-col items-center justify-center cursor-pointer transition-all active:scale-95">
+                        <i data-lucide="zap" class="w-16 h-16 text-white mb-2 fill-white"></i>
+                        <span class="text-2xl font-black text-white tracking-widest uppercase">BUZZ!</span>
+                        <span class="text-xs text-red-100/80 font-normal">กดเพื่อแย่งตอบ</span>
+                    </button>
+                </div>
+
+                <div class="text-xs text-slate-500">
+                    เมื่อมีคำถามเปิดขึ้น ปุ่มนี้จะทำงานทันที!
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MODAL: QUESTION DISPLAY & CONTROL (Host View) -->
+    <div id="modal-question" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel border-amber-500/30 max-w-4xl w-full rounded-2xl p-6 md:p-8 space-y-6 shadow-2xl relative overflow-hidden">
+            <!-- Top Bar with Category, Points & Timer -->
+            <div class="flex items-center justify-between border-b border-slate-700/80 pb-4">
+                <div class="flex items-center gap-3">
+                    <span id="q-category-tag" class="px-3 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded-full text-xs font-bold uppercase">
+                        UNIT 6: HIJACKER
+                    </span>
+                    <span id="q-points-tag" class="text-2xl font-black text-amber-400">
+                        500 PTS
+                    </span>
+                </div>
+
+                <!-- Countdown Timer Ring -->
+                <div class="flex items-center gap-3">
+                    <div class="relative w-12 h-12 flex items-center justify-center bg-slate-900 rounded-full border-2 border-amber-400">
+                        <span id="q-timer-seconds" class="text-xl font-black text-white">30</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Question Text Box -->
+            <div class="space-y-4">
+                <p id="q-number-text" class="text-xs text-slate-400 font-mono">Question #1</p>
+                <h3 id="q-text" class="text-xl md:text-3xl font-bold text-white leading-relaxed">
+                    Loading question text...
+                </h3>
+            </div>
+
+            <!-- Multiple Choice Grid (A, B, C, D) -->
+            <div id="q-choices-container" class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                <!-- Choice Items inserted by JS -->
+            </div>
+
+            <!-- BUZZER ALERT PANEL (Who buzzed first?) -->
+            <div id="buzzer-winner-panel" class="hidden bg-gradient-to-r from-amber-500/20 via-yellow-500/10 to-amber-500/20 border-2 border-amber-400/80 rounded-2xl p-4 text-center space-y-2 animate-pulse-fast">
+                <span class="text-xs font-bold text-amber-300 uppercase tracking-widest block">⚡ ทีมที่กด Buzzer ได้เร็วที่สุด!</span>
+                <div id="buzzer-winner-team" class="text-3xl font-black text-white">
+                    TEAM RED
+                </div>
+                <p class="text-xs text-slate-300">กรุณาให้นักเรียนตอบคำถาม แล้วเลือกผลลัพธ์ด้านล่าง</p>
+            </div>
+
+            <!-- Host Action Controls -->
+            <div class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-700/80">
+                <div class="flex items-center gap-2">
+                    <button onclick="revealAnswer()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-sm flex items-center gap-1.5">
+                        <i data-lucide="eye" class="w-4 h-4"></i> เฉลยคำตอบ
+                    </button>
+                    <button onclick="reopenBuzzers()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-amber-300 font-semibold rounded-xl text-sm border border-slate-700 flex items-center gap-1.5">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i> ให้ทีมอื่นแย่งตอบต่อ
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button onclick="judgeAnswer(false)" class="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-sm shadow-lg flex items-center gap-1">
+                        <i data-lucide="x" class="w-4 h-4"></i> ตอบผิด (-คะแนน)
+                    </button>
+                    <button onclick="judgeAnswer(true)" class="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-sm shadow-lg flex items-center gap-1">
+                        <i data-lucide="check" class="w-4 h-4"></i> ตอบถูก (+คะแนน)
+                    </button>
+                    <button onclick="closeQuestionModal()" class="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-300 font-semibold rounded-xl text-sm">
+                        ปิดหน้าต่าง
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: MANUAL BUZZERS FOR SINGLE SCREEN MODE -->
+    <div id="modal-offline-buzzers" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel border-slate-700 max-w-lg w-full rounded-2xl p-6 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                <h3 class="text-lg font-bold text-white">กด Buzzer บนหน้าจอครู / ปุ่มคีย์บอร์ด</h3>
+                <button onclick="toggleOfflineBuzzerModal()" class="text-slate-400 hover:text-white">&times;</button>
+            </div>
+            <p class="text-xs text-slate-400">
+                สามารถกดปุ่มทีมบนจอนี้ หรือใช้ปุ่มคีย์บอร์ดตัวเลข <span class="text-amber-400 font-bold">1, 2, 3, 4</span> เพื่อแย่งกด Buzzer แทนได้!
+            </p>
+            
+            <div id="manual-buzzers-list" class="grid grid-cols-2 gap-3">
+                <!-- Manual team buzz buttons -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ==========================================================================
+           100 QUESTIONS DATASET FROM ATTACHMENT (Units 6 - 9)
+           ========================================================================== */
+        const QUESTION_BANK = [
+            // UNIT 6: HIJACKER (Q1 - 25)
+            { id: 1, unit: 6, unitTitle: "Hijacker", text: "Who was Duane Weber's wife?", options: ["Gloria Heller", "Jo Weber", "Aung San Suu Kyi", "Mother Teresa"], answer: 1 },
+            { id: 2, unit: 6, unitTitle: "Hijacker", text: "What did Duane Weber tell his wife in 1995?", options: ["He was a pilot.", "He was a policeman.", "He was Dan Cooper.", "He was a flight attendant."], answer: 2 },
+            { id: 3, unit: 6, unitTitle: "Hijacker", text: "When did the hijacking take place?", options: ["1963", "1971", "1987", "1995"], answer: 1 },
+            { id: 4, unit: 6, unitTitle: "Hijacker", text: "On what date did the hijacking take place?", options: ["24 November 1971", "7 May 2001", "18 July 1918", "1 January 1971"], answer: 0 },
+            { id: 5, unit: 6, unitTitle: "Hijacker", text: "Where did the man claiming to be Dan Cooper board the plane?", options: ["Seattle", "Mexico", "Portland International Airport", "Washington"], answer: 2 },
+            { id: 6, unit: 6, unitTitle: "Hijacker", text: "Where was the plane going?", options: ["Mexico", "Seattle", "Brazil", "Aspen"], answer: 1 },
+            { id: 7, unit: 6, unitTitle: "Hijacker", text: "What did Cooper claim to be carrying?", options: ["A gun", "A bomb", "A knife", "A parachute"], answer: 1 },
+            { id: 8, unit: 6, unitTitle: "Hijacker", text: "How much money did Cooper demand?", options: ["US$20,000", "US$100,000", "US$200,000", "US$2.6 million"], answer: 2 },
+            { id: 9, unit: 6, unitTitle: "Hijacker", text: "How many parachutes did Cooper ask for?", options: ["Two", "Three", "Four", "Six"], answer: 2 },
+            { id: 10, unit: 6, unitTitle: "Hijacker", text: "What did Cooper allow the other passengers to do?", options: ["Take the money", "Leave the plane", "Fly the plane", "Go to Mexico"], answer: 1 },
+            { id: 11, unit: 6, unitTitle: "Hijacker", text: "Where did Cooper tell the pilot to take him?", options: ["Brazil", "Mexico", "Canada", "Australia"], answer: 1 },
+            { id: 12, unit: 6, unitTitle: "Hijacker", text: "What happened at around 8.00 p.m.?", options: ["The plane landed.", "Cooper was arrested.", "A warning sign indicated that an aircraft door had been opened.", "The passengers returned to the plane."], answer: 2 },
+            { id: 13, unit: 6, unitTitle: "Hijacker", text: "How did Cooper escape from the plane?", options: ["He hid in the cockpit.", "He jumped from the plane with a parachute.", "He escaped through the airport.", "He was taken away by a flight attendant."], answer: 1 },
+            { id: 14, unit: 6, unitTitle: "Hijacker", text: "How far did Cooper jump into the forest below?", options: ["1 kilometre", "2 kilometres", "3 kilometres", "5 kilometres"], answer: 2 },
+            { id: 15, unit: 6, unitTitle: "Hijacker", text: "What did the police never find?", options: ["The plane", "The pilot", "Dan Cooper or the money", "Jo Weber"], answer: 2 },
+            { id: 16, unit: 6, unitTitle: "Hijacker", text: "A person who helps passengers on an airplane is a _____.", options: ["guard", "flight attendant", "lawyer", "detective"], answer: 1 },
+            { id: 17, unit: 6, unitTitle: "Hijacker", text: "A person who steals money from people and asks for payment is asking for _____.", options: ["a symbol", "a ransom", "a privilege", "a souvenir"], answer: 1 },
+            { id: 18, unit: 6, unitTitle: "Hijacker", text: "“Whisper” means _____.", options: ["speak very loudly", "speak very quickly", "speak very quietly", "speak to a pilot"], answer: 2 },
+            { id: 19, unit: 6, unitTitle: "Hijacker", text: "“Cockpit” refers to _____.", options: ["part of the plane where the pilot sits", "part of the plane where passengers sleep", "the airport entrance", "the plane's engine"], answer: 0 },
+            { id: 20, unit: 6, unitTitle: "Hijacker", text: "Which word means “to tell someone that something is going to happen”?", options: ["indicate", "whisper", "board", "hijack"], answer: 0 },
+            { id: 21, unit: 6, unitTitle: "Hijacker", text: "Which word means “to get onto a plane”?", options: ["board", "jump", "claim", "release"], answer: 0 },
+            { id: 22, unit: 6, unitTitle: "Hijacker", text: "In “The Hijacker's Last Jump,” what did the hijacker use to escape from the plane?", options: ["A helicopter", "A parachute", "A rope", "A van"], answer: 1 },
+            { id: 23, unit: 6, unitTitle: "Hijacker", text: "What was wrong with the hijacker's parachute?", options: ["It was too small.", "It was lost.", "It did not work properly because he had made it himself.", "It belonged to the police."], answer: 2 },
+            { id: 24, unit: 6, unitTitle: "Hijacker", text: "What did the police find stuck in the ground?", options: ["The hijacker's body", "The money", "The gun", "The plane"], answer: 0 },
+            { id: 25, unit: 6, unitTitle: "Hijacker", text: "What is the main purpose of the passage about Dan Cooper?", options: ["To explain how airplanes work", "To tell the story of a famous unsolved crime", "To teach people how to use parachutes", "To describe Portland Airport"], answer: 1 },
+
+            // UNIT 7: DEATH BY POISON (Q26 - 50)
+            { id: 26, unit: 7, unitTitle: "Death by Poison", text: "What was Ben Barton?", options: ["A detective", "A successful businessman", "A lawyer", "A shopkeeper"], answer: 1 },
+            { id: 27, unit: 7, unitTitle: "Death by Poison", text: "Where did Ben Barton live?", options: ["Aspen, Colorado", "Seattle, Washington", "London, England", "San Francisco, California"], answer: 0 },
+            { id: 28, unit: 7, unitTitle: "Death by Poison", text: "When did Ben Barton marry Gloria Heller?", options: ["1979", "1987", "1994", "2001"], answer: 1 },
+            { id: 29, unit: 7, unitTitle: "Death by Poison", text: "Who did Gloria call when Ben disappeared?", options: ["Carl Thatcher", "Ronnie Biggs", "Detective Jim Steele", "Clarence Darrow"], answer: 2 },
+            { id: 30, unit: 7, unitTitle: "Death by Poison", text: "Where was Ben's body found?", options: ["In his house", "In a hospital", "In a forest near Aspen", "At a railway station"], answer: 2 },
+            { id: 31, unit: 7, unitTitle: "Death by Poison", text: "How was Ben Barton killed?", options: ["He was shot.", "He was poisoned.", "He was drowned.", "He was stabbed."], answer: 1 },
+            { id: 32, unit: 7, unitTitle: "Death by Poison", text: "Why did Detective Steele begin to suspect Gloria?", options: ["She confessed immediately.", "She ran away instead of going to Ben's funeral.", "She was seen at the police station.", "She had a gun."], answer: 1 },
+            { id: 33, unit: 7, unitTitle: "Death by Poison", text: "How long after Ben's death was Gloria found?", options: ["Two weeks", "Two months", "Six years", "Fifteen years"], answer: 2 },
+            { id: 34, unit: 7, unitTitle: "Death by Poison", text: "Who was Gloria living with when she was found?", options: ["Ben Barton", "Jim Steele", "Carl Thatcher", "Clarence Darrow"], answer: 2 },
+            { id: 35, unit: 7, unitTitle: "Death by Poison", text: "What evidence did Detective Steele initially have against Gloria?", options: ["A letter", "A photograph", "A shopkeeper had sold her rat poison", "A confession from Gloria"], answer: 2 },
+            { id: 36, unit: 7, unitTitle: "Death by Poison", text: "How long before Ben's death had Gloria bought the rat poison?", options: ["Two days", "Two weeks", "Six weeks", "Six months"], answer: 1 },
+            { id: 37, unit: 7, unitTitle: "Death by Poison", text: "What did Detective Steele need to find?", options: ["A parachute", "A motive for the murder", "A new job", "A lawyer"], answer: 1 },
+            { id: 38, unit: 7, unitTitle: "Death by Poison", text: "What happened when Detective Steele interviewed Carl Thatcher?", options: ["Carl immediately left town.", "Carl became tired and angry and eventually confessed.", "Carl denied knowing Gloria.", "Carl arrested Detective Steele."], answer: 1 },
+            { id: 39, unit: 7, unitTitle: "Death by Poison", text: "What was the relationship between Carl and Gloria?", options: ["They were brother and sister.", "They were teacher and student.", "They were having an affair.", "They were business partners."], answer: 2 },
+            { id: 40, unit: 7, unitTitle: "Death by Poison", text: "Why did Gloria and Carl decide to murder Ben?", options: ["They wanted his money.", "They wanted to get married.", "They wanted to leave Aspen.", "They wanted to become detectives."], answer: 1 },
+            { id: 41, unit: 7, unitTitle: "Death by Poison", text: "How did Gloria give Ben the poison?", options: ["She put it in his car.", "She put it in a meal she cooked for him.", "She gave it to him as medicine.", "She put it in his drink at a restaurant."], answer: 1 },
+            { id: 42, unit: 7, unitTitle: "Death by Poison", text: "What did Carl help Gloria do?", options: ["Escape from prison", "Hide Ben's body in the forest", "Buy a house", "Find a lawyer"], answer: 1 },
+            { id: 43, unit: 7, unitTitle: "Death by Poison", text: "What happened to Gloria and Carl?", options: ["They were released immediately.", "They were found guilty of murder.", "They escaped to Brazil.", "They became detectives."], answer: 1 },
+            { id: 44, unit: 7, unitTitle: "Death by Poison", text: "How long were Gloria and Carl sentenced to prison?", options: ["Two years", "Six years", "Ten years", "Fifteen years"], answer: 3 },
+            { id: 45, unit: 7, unitTitle: "Death by Poison", text: "What does “motive” mean?", options: ["A reason for doing something", "A type of poison", "A police officer", "A prison sentence"], answer: 0 },
+            { id: 46, unit: 7, unitTitle: "Death by Poison", text: "What does “confess” mean?", options: ["To run away", "To admit that you have done something wrong", "To find evidence", "To arrest someone"], answer: 1 },
+            { id: 47, unit: 7, unitTitle: "Death by Poison", text: "What is a “trial”?", options: ["A period when someone is tested or judged in court", "A police station", "A prison escape", "A business meeting"], answer: 0 },
+            { id: 48, unit: 7, unitTitle: "Death by Poison", text: "According to the passage, who was Clarence Darrow?", options: ["A famous criminal", "A famous lawyer", "A detective", "A businessman"], answer: 1 },
+            { id: 49, unit: 7, unitTitle: "Death by Poison", text: "Clarence Darrow often defended _____.", options: ["rich businessmen", "famous criminals only", "poor people", "police officers"], answer: 2 },
+            { id: 50, unit: 7, unitTitle: "Death by Poison", text: "What is an important part of police work according to “A Good Lawyer”?", options: ["Finding evidence", "Selling souvenirs", "Writing newspapers", "Making money"], answer: 0 },
+
+            // UNIT 8: GREAT TRAIN ROBBER (Q51 - 75)
+            { id: 51, unit: 8, unitTitle: "Great Train Robber", text: "Who was Ronnie Biggs?", options: ["A detective", "A famous escaped criminal", "A lawyer", "A prison guard"], answer: 1 },
+            { id: 52, unit: 8, unitTitle: "Great Train Robber", text: "When did Ronnie Biggs arrive in Britain after being away for thirty-five years?", options: ["1963", "1965", "1970", "2001"], answer: 3 },
+            { id: 53, unit: 8, unitTitle: "Great Train Robber", text: "What famous crime was Ronnie Biggs involved in?", options: ["The Great Train Robbery", "The Great Airport Robbery", "The London Bank Robbery", "The Alcatraz Robbery"], answer: 0 },
+            { id: 54, unit: 8, unitTitle: "Great Train Robber", text: "How much money did the gang steal from the train?", options: ["£200,000", "£1 million", "£2.6 million", "£26 million"], answer: 2 },
+            { id: 55, unit: 8, unitTitle: "Great Train Robber", text: "Where was the train travelling?", options: ["London to Glasgow", "Glasgow to Brazil", "London to Paris", "Aspen to London"], answer: 0 },
+            { id: 56, unit: 8, unitTitle: "Great Train Robber", text: "How long was Biggs sentenced to prison?", options: ["Fifteen years", "Twenty years", "Thirty years", "Thirty-five years"], answer: 2 },
+            { id: 57, unit: 8, unitTitle: "Great Train Robber", text: "Why did Biggs decide to escape?", options: ["He was ill.", "He thought his sentence was too harsh.", "He wanted to visit Australia.", "His family asked him to escape."], answer: 1 },
+            { id: 58, unit: 8, unitTitle: "Great Train Robber", text: "Which prison was Ronnie Biggs sent to?", options: ["Alcatraz Prison", "Wandsworth Prison", "Aspen Prison", "Portland Prison"], answer: 1 },
+            { id: 59, unit: 8, unitTitle: "Great Train Robber", text: "What kind of prison was Wandsworth?", options: ["A small local prison", "A maximum security prison", "A hospital prison", "A children's prison"], answer: 2 },
+            { id: 60, unit: 8, unitTitle: "Great Train Robber", text: "How long had Biggs been in prison when he escaped?", options: ["Fifteen months", "Fifteen years", "Thirty months", "Thirty-five years"], answer: 0 },
+            { id: 61, unit: 8, unitTitle: "Great Train Robber", text: "What was placed against the prison wall?", options: ["A rope", "A ladder", "A parachute", "A van"], answer: 1 },
+            { id: 62, unit: 8, unitTitle: "Great Train Robber", text: "What did Biggs climb to escape?", options: ["A tree", "A rope ladder", "A building", "A helicopter"], answer: 1 },
+            { id: 63, unit: 8, unitTitle: "Great Train Robber", text: "Where did Biggs jump after climbing over the wall?", options: ["Into a train", "Into a river", "Into a van", "Into a plane"], answer: 2 },
+            { id: 64, unit: 8, unitTitle: "Great Train Robber", text: "Where did Biggs eventually settle in 1970?", options: ["France", "Spain", "Brazil", "Australia"], answer: 2 },
+            { id: 65, unit: 8, unitTitle: "Great Train Robber", text: "What did Biggs become in Brazil?", options: ["A famous lawyer", "A celebrity criminal", "A police officer", "A businessman"], answer: 1 },
+            { id: 66, unit: 8, unitTitle: "Great Train Robber", text: "What did Biggs sell to tourists?", options: ["Food", "Cars", "Souvenirs", "Parachutes"], answer: 2 },
+            { id: 67, unit: 8, unitTitle: "Great Train Robber", text: "How old was Biggs when he decided to return to Britain?", options: ["60", "65", "70", "71"], answer: 3 },
+            { id: 68, unit: 8, unitTitle: "Great Train Robber", text: "Who met Biggs at the airport when he returned to Britain?", options: ["Only his family", "Only his friends", "Family, friends and police", "Detectives from Brazil"], answer: 2 },
+            { id: 69, unit: 8, unitTitle: "Great Train Robber", text: "Choose the passive form of “The police caught the gang quickly.”", options: ["The gang caught the police quickly.", "The gang was caught quickly.", "The gang has caught quickly.", "The police were caught quickly."], answer: 1 },
+            { id: 70, unit: 8, unitTitle: "Great Train Robber", text: "Choose the passive form of “A judge sentenced Biggs to thirty years in prison.”", options: ["Biggs sentenced a judge.", "Biggs was sentenced to thirty years in prison.", "A judge was sentenced by Biggs.", "Biggs has sentenced thirty years."], answer: 1 },
+            { id: 71, unit: 8, unitTitle: "Great Train Robber", text: "Choose the passive form of “The judge sent Biggs to Wandsworth Prison.”", options: ["Biggs was sent to Wandsworth Prison.", "Biggs sent the judge to prison.", "Wandsworth Prison sent Biggs.", "The judge was sent by Biggs."], answer: 0 },
+            { id: 72, unit: 8, unitTitle: "Great Train Robber", text: "Choose the passive form of “Somebody placed a ladder against the prison wall.”", options: ["The wall placed a ladder.", "A ladder was placed against the prison wall.", "Somebody was placed against the wall.", "A ladder placed somebody."], answer: 1 },
+            { id: 73, unit: 8, unitTitle: "Great Train Robber", text: "Where was Alcatraz located?", options: ["In London", "On an island in San Francisco Bay", "In Brazil", "Near Aspen"], answer: 1 },
+            { id: 74, unit: 8, unitTitle: "Great Train Robber", text: "How many men tried to escape from Alcatraz between 1934 and 1963?", options: ["23", "25", "36", "50"], answer: 2 },
+            { id: 75, unit: 8, unitTitle: "Great Train Robber", text: "What happened to six of the men who tried to escape from Alcatraz?", options: ["They were arrested in Brazil.", "They were shot and killed.", "They became celebrities.", "They returned to Britain."], answer: 1 },
+
+            // UNIT 9: NELSON MANDELA (Q76 - 100)
+            { id: 76, unit: 9, unitTitle: "Nelson Mandela", text: "What country did Nelson Mandela help change?", options: ["Brazil", "South Africa", "Australia", "The United States"], answer: 1 },
+            { id: 77, unit: 9, unitTitle: "Nelson Mandela", text: "What did Mandela fight for?", options: ["Money and power", "Justice and peace", "More prisons", "More land for white people"], answer: 1 },
+            { id: 78, unit: 9, unitTitle: "Nelson Mandela", text: "What was apartheid?", options: ["A system of separateness", "A type of government election", "A prison", "A political party"], answer: 0 },
+            { id: 79, unit: 9, unitTitle: "Nelson Mandela", text: "Who had many privileges under apartheid?", options: ["African South Africans", "Indian South Africans", "Asian South Africans", "White South Africans"], answer: 3 },
+            { id: 80, unit: 9, unitTitle: "Nelson Mandela", text: "Approximately what percentage of South Africans were white?", options: ["10%", "20%", "50%", "90%"], answer: 1 },
+            { id: 81, unit: 9, unitTitle: "Nelson Mandela", text: "Approximately what percentage of the land was owned by white South Africans?", options: ["20%", "27%", "50%", "90%"], answer: 3 },
+            { id: 82, unit: 9, unitTitle: "Nelson Mandela", text: "When did the South African government start apartheid?", options: ["1918", "1948", "1962", "1994"], answer: 1 },
+            { id: 83, unit: 9, unitTitle: "Nelson Mandela", text: "What happened to many people who protested against apartheid?", options: ["They became presidents.", "They were often sent to prison or murdered.", "They were given privileges.", "They were sent to Brazil."], answer: 1 },
+            { id: 84, unit: 9, unitTitle: "Nelson Mandela", text: "When was Nelson Mandela born?", options: ["1918", "1948", "1962", "1994"], answer: 0 },
+            { id: 85, unit: 9, unitTitle: "Nelson Mandela", text: "Where was Nelson Mandela born?", options: ["Aspen", "Transkei, South Africa", "London", "Johannesburg, USA"], answer: 1 },
+            { id: 86, unit: 9, unitTitle: "Nelson Mandela", text: "What did Mandela study at university?", options: ["Medicine", "Engineering", "Law", "Economics"], answer: 2 },
+            { id: 87, unit: 9, unitTitle: "Nelson Mandela", text: "How old was Mandela when he went to university?", options: ["18", "20", "21", "27"], answer: 2 },
+            { id: 88, unit: 9, unitTitle: "Nelson Mandela", text: "In what year was Mandela sent to prison?", options: ["1948", "1962", "1990", "1994"], answer: 1 },
+            { id: 89, unit: 9, unitTitle: "Nelson Mandela", text: "How long did Mandela remain in prison?", options: ["15 years", "20 years", "27 years", "35 years"], answer: 2 },
+            { id: 90, unit: 9, unitTitle: "Nelson Mandela", text: "When was Mandela released from prison?", options: ["Beginning of 1990", "Beginning of 1994", "In 1999", "In 2000"], answer: 0 },
+            { id: 91, unit: 9, unitTitle: "Nelson Mandela", text: "What did Mandela become in 1994?", options: ["A lawyer", "President of South Africa", "A detective", "A university professor"], answer: 1 },
+            { id: 92, unit: 9, unitTitle: "Nelson Mandela", text: "Why did Mandela give up his job as president in 1999?", options: ["He wanted to move to Brazil.", "He wanted to enjoy the freedom he had fought for.", "He was sent to prison again.", "He wanted to become a lawyer."], answer: 1 },
+            { id: 93, unit: 9, unitTitle: "Nelson Mandela", text: "What does “privileges” mean?", options: ["Special advantages or rights", "Punishments", "Crimes", "Protests"], answer: 0 },
+            { id: 94, unit: 9, unitTitle: "Nelson Mandela", text: "What does “discriminate against” mean?", options: ["To treat people unfairly because of differences such as race or religion", "To give everyone equal rights", "To help people escape", "To release prisoners"], answer: 0 },
+            { id: 95, unit: 9, unitTitle: "Nelson Mandela", text: "What does “released” mean?", options: ["Sent to prison", "Set free", "Arrested", "Discriminated against"], answer: 1 },
+            { id: 96, unit: 9, unitTitle: "Nelson Mandela", text: "What does “protests” mean?", options: ["Public actions showing disagreement", "Special privileges", "Symbolic love", "Prison sentences"], answer: 0 },
+            { id: 97, unit: 9, unitTitle: "Nelson Mandela", text: "In what year did Nelson Mandela and F. W. de Klerk receive the Nobel Peace Prize?", options: ["1979", "1991", "1993", "2000"], answer: 2 },
+            { id: 98, unit: 9, unitTitle: "Nelson Mandela", text: "Why did Mandela and F. W. de Klerk receive the Nobel Peace Prize?", options: ["For developing computer software", "For their work toward the peaceful end of apartheid in South Africa", "For escaping from prison", "For defending criminals"], answer: 1 },
+            { id: 99, unit: 9, unitTitle: "Nelson Mandela", text: "Who won the Nobel Peace Prize in 1964 for working non-violently to end discrimination?", options: ["Martin Luther King Jr.", "Mother Teresa", "Kim Dae-jung", "Aung San Suu Kyi"], answer: 0 },
+            { id: 100, unit: 9, unitTitle: "Nelson Mandela", text: "Who received the Nobel Peace Prize in 2000 for promoting democracy and human rights in South Korea?", options: ["Yasir Arafat", "Shimon Peres", "Kim Dae-jung", "Nelson Mandela"], answer: 2 }
+        ];
+
+        /* ==========================================================================
+           GAME STATE ENGINE & NETWORKING
+           ========================================================================== */
+        const TEAM_COLORS = [
+            { bg: 'bg-red-500', border: 'border-red-400', text: 'text-red-400', hex: '#ef4444' },
+            { bg: 'bg-blue-500', border: 'border-blue-400', text: 'text-blue-400', hex: '#3b82f6' },
+            { bg: 'bg-emerald-500', border: 'border-emerald-400', text: 'text-emerald-400', hex: '#10b981' },
+            { bg: 'bg-amber-500', border: 'border-amber-400', text: 'text-amber-400', hex: '#f59e0b' },
+            { bg: 'bg-purple-500', border: 'border-purple-400', text: 'text-purple-400', hex: '#a855f7' },
+            { bg: 'bg-pink-500', border: 'border-pink-400', text: 'text-pink-400', hex: '#ec4899' },
+        ];
+
+        let state = {
+            role: null, // 'host' or 'student'
+            roomCode: '',
+            peer: null,
+            broadcastChannel: null, // BroadcastChannel fallback
+            connections: [], // Host: array of peer conns
+            hostConn: null, // Student: connection to host
+            isLocalFallbackMode: false,
+            teams: [
+                { id: 't1', name: 'Team Red', score: 0, colorIdx: 0 },
+                { id: 't2', name: 'Team Blue', score: 0, colorIdx: 1 },
+                { id: 't3', name: 'Team Green', score: 0, colorIdx: 2 },
+                { id: 't4', name: 'Team Yellow', score: 0, colorIdx: 3 }
+            ],
+            openedTiles: new Set(),
+            currentQuestion: null,
+            currentPoints: 0,
+            activeBuzzerTeam: null,
+            buzzerLocked: false,
+            timerInterval: null,
+            timeLeft: 30,
+            studentMyTeam: null
+        };
+
+        /* ==========================================================================
+           WEB AUDIO SYNTHESIZER SOUND ENGINE
+           ========================================================================== */
+        const AudioFX = {
+            ctx: null,
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            playBuzzer() {
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(440, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(880, this.ctx.currentTime + 0.25);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.3);
+            },
+            playCorrect() {
+                this.init();
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.08);
+                    gain.gain.setValueAtTime(0.2, this.ctx.currentTime + idx * 0.08);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + idx * 0.08 + 0.3);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(this.ctx.currentTime + idx * 0.08);
+                    osc.stop(this.ctx.currentTime + idx * 0.08 + 0.3);
+                });
+            },
+            playWrong() {
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(80, this.ctx.currentTime + 0.4);
+                gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.4);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.4);
+            },
+            playTick() {
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+                gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.05);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.05);
+            }
+        };
+
+        /* ==========================================================================
+           INITIALIZATION & ROLE HANDLERS
+           ========================================================================== */
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+
+            // Detect if running from local file system
+            if (window.location.protocol === 'file:') {
+                const warnBox = document.getElementById('local-file-warning');
+                if (warnBox) warnBox.classList.remove('hidden');
+            }
+            
+            // Setup Keyboard Hotkeys for Local Buzzer (Keys 1-9)
+            window.addEventListener('keydown', (e) => {
+                if (state.role === 'host' && state.currentQuestion && !state.buzzerLocked) {
+                    const keyNum = parseInt(e.key);
+                    if (!isNaN(keyNum) && keyNum >= 1 && keyNum <= state.teams.length) {
+                        const targetTeam = state.teams[keyNum - 1];
+                        if (targetTeam) {
+                            triggerManualBuzz(targetTeam.id);
+                        }
+                    }
+                }
+            });
+
+            // Check URL query for room code parameter (e.g., ?room=M1234)
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomParam = urlParams.get('room');
+            if (roomParam) {
+                selectRole('student');
+                document.getElementById('student-room-input').value = roomParam.toUpperCase();
+            }
+        });
+
+        function selectRole(role) {
+            state.role = role;
+            document.getElementById('screen-welcome').classList.add('hidden');
+
+            if (role === 'host') {
+                document.getElementById('screen-host-setup').classList.remove('hidden');
+                initHostPeer();
+                renderSetupTeamsList();
+            } else {
+                document.getElementById('screen-student').classList.remove('hidden');
+                populateStudentTeamsDropdown();
+            }
+            updateRoleBadge();
+        }
+
+        function updateRoleBadge() {
+            const container = document.getElementById('role-badge-container');
+            if (state.role === 'host') {
+                container.innerHTML = `
+                    <span class="px-3 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded-full text-xs font-bold flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> Host (ครูผู้สอน)
+                    </span>`;
+            } else if (state.role === 'student') {
+                container.innerHTML = `
+                    <span class="px-3 py-1 bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 rounded-full text-xs font-bold flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span> Student Player
+                    </span>`;
+            }
+        }
+
+        /* ==========================================================================
+           HOST PEERJS NETWORK & TEAMS MANAGEMENT
+           ========================================================================== */
+        function initHostPeer() {
+            // Generate a random clean 5-character Room Code
+            state.roomCode = 'M' + Math.floor(1000 + Math.random() * 9000);
+            document.getElementById('display-room-code').innerText = state.roomCode;
+
+            // Pre-fill custom base URL field
+            const customUrlInput = document.getElementById('custom-base-url');
+            if (customUrlInput && !customUrlInput.value) {
+                if (window.location.protocol !== 'file:') {
+                    customUrlInput.value = `${window.location.origin}${window.location.pathname}`;
+                } else {
+                    customUrlInput.value = '';
+                }
+            }
+
+            // Initialize BroadcastChannel fallback
+            try {
+                if ('BroadcastChannel' in window) {
+                    state.broadcastChannel = new BroadcastChannel('mastery-quiz-' + state.roomCode);
+                    state.broadcastChannel.onmessage = (event) => {
+                        handleHostNetworkData(event.data, null);
+                    };
+                }
+            } catch (bcErr) {
+                console.warn('BroadcastChannel error:', bcErr);
+            }
+
+            const peerId = 'mastery-quiz-' + state.roomCode;
+
+            try {
+                state.peer = new Peer(peerId, {
+                    debug: 1,
+                    config: {'iceServers': [{ urls: 'stun:stun.l.google.com:19302' }]}
+                });
+
+                state.peer.on('open', (id) => {
+                    console.log('Host Peer initialized with ID:', id);
+                    generateQRCode();
+                });
+
+                state.peer.on('connection', (conn) => {
+                    state.connections.push(conn);
+                    updateConnectedCount();
+
+                    conn.on('data', (data) => {
+                        handleHostNetworkData(data, conn);
+                    });
+
+                    conn.on('close', () => {
+                        state.connections = state.connections.filter(c => c !== conn);
+                        updateConnectedCount();
+                    });
+                });
+
+                state.peer.on('error', (err) => {
+                    console.warn('PeerJS connection fallback mode:', err);
+                    enableSandboxFallbackMode();
+                });
+            } catch (err) {
+                console.warn('Security restriction detected. Enabling local fallback mode.', err);
+                enableSandboxFallbackMode();
+            }
+        }
+
+        function enableSandboxFallbackMode() {
+            state.isLocalFallbackMode = true;
+            const badge = document.getElementById('sandbox-mode-badge');
+            if (badge) badge.classList.remove('hidden');
+            generateQRCode();
+        }
+
+        function generateQRCode() {
+            const container = document.getElementById('qrcode-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            let baseUrl = document.getElementById('custom-base-url')?.value.trim();
+            if (!baseUrl) {
+                baseUrl = `${window.location.origin}${window.location.pathname}`;
+            }
+
+            const playerUrl = `${baseUrl}?room=${state.roomCode}`;
+            new QRCode(container, {
+                text: playerUrl,
+                width: 140,
+                height: 140,
+                colorDark: "#0f172a",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        }
+
+        function copyRoomLink() {
+            let baseUrl = document.getElementById('custom-base-url')?.value.trim();
+            if (!baseUrl) baseUrl = `${window.location.origin}${window.location.pathname}`;
+            const playerUrl = `${baseUrl}?room=${state.roomCode}`;
+            
+            navigator.clipboard.writeText(playerUrl).then(() => {
+                alert('คัดลอกลิงก์เข้าร่วมห้องเรียบร้อยแล้ว!');
+            }).catch(() => {
+                alert(`ลิงก์สำหรับเข้าร่วมห้อง: ${playerUrl}`);
+            });
+        }
+
+        function updateConnectedCount() {
+            const el = document.getElementById('connected-count');
+            if (el) el.innerText = state.connections.length;
+        }
+
+        function renderSetupTeamsList() {
+            const list = document.getElementById('teams-setup-list');
+            list.innerHTML = state.teams.map((t) => `
+                <div class="flex items-center justify-between bg-slate-900/80 p-3 rounded-xl border border-slate-700">
+                    <div class="flex items-center gap-3">
+                        <span class="w-4 h-4 rounded-full ${TEAM_COLORS[t.colorIdx].bg}"></span>
+                        <span class="font-bold text-sm text-white">${t.name}</span>
+                    </div>
+                    <button onclick="removeTeam('${t.id}')" class="text-slate-500 hover:text-rose-400 p-1">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function addTeamFromSetup() {
+            const input = document.getElementById('input-new-team');
+            const val = input.value.trim();
+            if (!val) return;
+            const newId = 't_' + Date.now();
+            const colorIdx = state.teams.length % TEAM_COLORS.length;
+            state.teams.push({ id: newId, name: val, score: 0, colorIdx });
+            input.value = '';
+            renderSetupTeamsList();
+            broadcastTeamListToStudents();
+        }
+
+        function removeTeam(id) {
+            if (state.teams.length <= 1) {
+                alert('ต้องมีอย่างน้อย 1 ทีมในการเล่น!');
+                return;
+            }
+            state.teams = state.teams.filter(t => t.id !== id);
+            renderSetupTeamsList();
+            broadcastTeamListToStudents();
+        }
+
+        function broadcastTeamListToStudents() {
+            broadcastToStudents({
+                type: 'TEAM_LIST_UPDATE',
+                teams: state.teams
+            });
+        }
+
+        function broadcastToStudents(payload) {
+            // Send via PeerJS WebSockets
+            state.connections.forEach(conn => {
+                if (conn && conn.open) {
+                    try { conn.send(payload); } catch (e) {}
+                }
+            });
+
+            // Send via BroadcastChannel fallback
+            if (state.broadcastChannel) {
+                try { state.broadcastChannel.postMessage(payload); } catch (e) {}
+            }
+        }
+
+        /* ==========================================================================
+           HOST GAMEPLAY BOARD & MATRIX RENDER
+           ========================================================================== */
+        function startHostGame() {
+            document.getElementById('screen-host-setup').classList.add('hidden');
+            document.getElementById('screen-host-board').classList.remove('hidden');
+            renderScoreboard();
+            renderJeopardyGrid();
+            broadcastTeamListToStudents();
+        }
+
+        function renderScoreboard() {
+            const container = document.getElementById('scoreboard-container');
+            container.innerHTML = state.teams.map(t => {
+                const color = TEAM_COLORS[t.colorIdx];
+                return `
+                <div class="glass-panel p-3.5 rounded-2xl border ${color.border} flex flex-col justify-between space-y-2 shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold ${color.text} truncate max-w-[100px]">${t.name}</span>
+                        <div class="flex gap-1">
+                            <button onclick="adjustScore('${t.id}', 100)" class="text-slate-400 hover:text-emerald-400 text-xs font-bold px-1.5 py-0.5 rounded bg-slate-800">+100</button>
+                            <button onclick="adjustScore('${t.id}', -100)" class="text-slate-400 hover:text-rose-400 text-xs font-bold px-1.5 py-0.5 rounded bg-slate-800">-100</button>
+                        </div>
+                    </div>
+                    <div class="text-2xl md:text-3xl font-black text-white tracking-tight">
+                        ${t.score.toLocaleString()} <span class="text-xs font-normal text-slate-400">pts</span>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function adjustScore(teamId, delta) {
+            const team = state.teams.find(t => t.id === teamId);
+            if (team) {
+                team.score += delta;
+                renderScoreboard();
+            }
+        }
+
+        function renderJeopardyGrid() {
+            const grid = document.getElementById('jeopardy-tiles-grid');
+            const pointTiers = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000];
+            const units = [6, 7, 8, 9];
+
+            let html = '';
+            pointTiers.forEach(pts => {
+                html += `<div class="grid grid-cols-4 gap-3">`;
+                units.forEach(unitId => {
+                    const tileKey = `${unitId}-${pts}`;
+                    const isOpened = state.openedTiles.has(tileKey);
+
+                    if (isOpened) {
+                        html += `
+                        <div class="glass-panel p-4 rounded-xl text-center border border-slate-800 opacity-40 bg-slate-900/80 cursor-not-allowed">
+                            <span class="text-xl font-bold text-slate-600 font-mono">---</span>
+                        </div>`;
+                    } else {
+                        html += `
+                        <button onclick="openQuestionTile(${unitId}, ${pts})" class="tile-card glass-panel p-4 rounded-xl text-center border border-amber-500/30 hover:border-amber-400 bg-gradient-to-b from-slate-800/90 to-slate-900/90 group cursor-pointer">
+                            <span class="text-2xl font-black text-amber-400 group-hover:scale-110 group-hover:text-yellow-300 transition-transform block font-mono">
+                                ${pts}
+                            </span>
+                        </button>`;
+                    }
+                });
+                html += `</div>`;
+            });
+            grid.innerHTML = html;
+        }
+
+        /* ==========================================================================
+           QUESTION MODAL & TIMERS (Host Control)
+           ========================================================================== */
+        function openQuestionTile(unitId, points) {
+            const tileKey = `${unitId}-${points}`;
+            state.openedTiles.add(tileKey);
+            renderJeopardyGrid();
+
+            const unitQuestions = QUESTION_BANK.filter(q => q.unit === unitId);
+            const qIndex = (points / 100 - 1) % unitQuestions.length;
+            state.currentQuestion = unitQuestions[qIndex];
+            state.currentPoints = points;
+            state.activeBuzzerTeam = null;
+            state.buzzerLocked = false;
+
+            document.getElementById('q-category-tag').innerText = `UNIT ${unitId}: ${state.currentQuestion.unitTitle}`;
+            document.getElementById('q-points-tag').innerText = `${points} PTS`;
+            document.getElementById('q-number-text').innerText = `Question #${state.currentQuestion.id} of 100`;
+            document.getElementById('q-text').innerText = state.currentQuestion.text;
+
+            const choicesContainer = document.getElementById('q-choices-container');
+            const prefixes = ['A', 'B', 'C', 'D'];
+            choicesContainer.innerHTML = state.currentQuestion.options.map((opt, i) => `
+                <div id="choice-btn-${i}" class="glass-panel p-4 rounded-xl border border-slate-700/80 flex items-center gap-3">
+                    <span class="w-8 h-8 rounded-lg bg-slate-800 font-bold text-amber-400 flex items-center justify-center border border-slate-700 shrink-0 font-mono">
+                        ${prefixes[i]}
+                    </span>
+                    <span class="text-sm font-medium text-slate-200">${opt}</span>
+                </div>
+            `).join('');
+
+            document.getElementById('buzzer-winner-panel').classList.add('hidden');
+            document.getElementById('modal-question').classList.remove('hidden');
+
+            broadcastToStudents({
+                type: 'QUESTION_OPENED',
+                points: points,
+                category: `Unit ${unitId}`,
+                questionText: state.currentQuestion.text
+            });
+
+            startTimer(30);
+        }
+
+        function startTimer(seconds) {
+            clearInterval(state.timerInterval);
+            state.timeLeft = seconds;
+            document.getElementById('q-timer-seconds').innerText = state.timeLeft;
+
+            state.timerInterval = setInterval(() => {
+                state.timeLeft--;
+                document.getElementById('q-timer-seconds').innerText = state.timeLeft;
+                if (state.timeLeft <= 5 && state.timeLeft > 0) {
+                    AudioFX.playTick();
+                }
+                if (state.timeLeft <= 0) {
+                    clearInterval(state.timerInterval);
+                    state.buzzerLocked = true;
+                    broadcastToStudents({ type: 'TIME_EXPIRED' });
+                }
+            }, 1000);
+        }
+
+        function revealAnswer() {
+            if (!state.currentQuestion) return;
+            const correctIdx = state.currentQuestion.answer;
+            state.currentQuestion.options.forEach((_, i) => {
+                const el = document.getElementById(`choice-btn-${i}`);
+                if (i === correctIdx) {
+                    el.className = 'glass-panel p-4 rounded-xl border-2 border-emerald-400 bg-emerald-950/60 text-white font-bold flex items-center gap-3 animate-bounce-short';
+                } else {
+                    el.className = 'glass-panel p-4 rounded-xl border border-slate-800 opacity-40 flex items-center gap-3';
+                }
+            });
+            AudioFX.playCorrect();
+        }
+
+        function reopenBuzzers() {
+            state.activeBuzzerTeam = null;
+            state.buzzerLocked = false;
+            document.getElementById('buzzer-winner-panel').classList.add('hidden');
+            broadcastToStudents({ type: 'REOPEN_BUZZER' });
+            startTimer(15);
+        }
+
+        function judgeAnswer(isCorrect) {
+            if (!state.activeBuzzerTeam) {
+                alert('ยังไม่มีทีมกด Buzzer หรือกรุณาเลือกปุ่ม Manual Buzzer บนหน้าจอ');
+                return;
+            }
+
+            const team = state.teams.find(t => t.id === state.activeBuzzerTeam.id);
+            if (team) {
+                if (isCorrect) {
+                    team.score += state.currentPoints;
+                    AudioFX.playCorrect();
+                    confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+                } else {
+                    team.score -= state.currentPoints;
+                    AudioFX.playWrong();
+                }
+                renderScoreboard();
+                broadcastToStudents({
+                    type: 'ANSWER_RESULT',
+                    teamId: team.id,
+                    isCorrect: isCorrect,
+                    newScore: team.score
+                });
+            }
+
+            if (isCorrect) {
+                setTimeout(closeQuestionModal, 1200);
+            }
+        }
+
+        function closeQuestionModal() {
+            clearInterval(state.timerInterval);
+            document.getElementById('modal-question').classList.add('hidden');
+            broadcastToStudents({ type: 'QUESTION_CLOSED' });
+
+            if (state.openedTiles.size >= 40) {
+                triggerGameOverScreen();
+            }
+        }
+
+        function triggerGameOverScreen() {
+            const sorted = [...state.teams].sort((a, b) => b.score - a.score);
+            const winner = sorted[0];
+            confetti({ particleCount: 300, spread: 100, origin: { y: 0.4 } });
+            alert(`🎉 จบเกมแล้ว! ทีมผู้ชนะคือ "${winner.name}" ด้วยคะแนนรวม ${winner.score} คะแนน!`);
+        }
+
+        /* ==========================================================================
+           STUDENT NETWORK & BUZZER CONTROLLER
+           ========================================================================== */
+        function populateStudentTeamsDropdown() {
+            const select = document.getElementById('student-team-select');
+            select.innerHTML = state.teams.map(t => `<option value="${t.id}">${t.name}</option>`).join('') +
+                               `<option value="custom">+ ระบุชื่อทีมใหม่...</option>`;
+
+            select.addEventListener('change', (e) => {
+                const customBox = document.getElementById('custom-team-input-container');
+                if (e.target.value === 'custom') {
+                    customBox.classList.remove('hidden');
+                } else {
+                    customBox.classList.add('hidden');
+                }
+            });
+        }
+
+        function connectStudentToHost() {
+            const errBox = document.getElementById('student-connect-error');
+            errBox.classList.add('hidden');
+
+            const roomInput = document.getElementById('student-room-input').value.trim().toUpperCase();
+            if (!roomInput) {
+                alert('กรุณากรอกรหัสห้อง (Room Code)');
+                return;
+            }
+
+            const teamSelect = document.getElementById('student-team-select').value;
+            let teamObj = null;
+
+            if (teamSelect === 'custom') {
+                const customName = document.getElementById('student-custom-team').value.trim();
+                if (!customName) {
+                    alert('กรุณากรอกชื่อทีมใหม่ของคุณ');
+                    return;
+                }
+                teamObj = { id: 'st_' + Date.now(), name: customName, score: 0, colorIdx: Math.floor(Math.random() * TEAM_COLORS.length) };
+            } else {
+                teamObj = state.teams.find(t => t.id === teamSelect);
+            }
+
+            state.studentMyTeam = teamObj;
+            state.roomCode = roomInput;
+
+            // Setup BroadcastChannel for local student connection
+            try {
+                if ('BroadcastChannel' in window) {
+                    state.broadcastChannel = new BroadcastChannel('mastery-quiz-' + state.roomCode);
+                    state.broadcastChannel.onmessage = (event) => {
+                        handleStudentNetworkData(event.data);
+                    };
+                }
+            } catch (bcErr) {
+                console.warn('BroadcastChannel error:', bcErr);
+            }
+
+            // PeerJS Connection Attempt
+            try {
+                const peerId = 'student-' + Math.floor(Math.random() * 100000);
+                state.peer = new Peer(peerId, {
+                    config: {'iceServers': [{ urls: 'stun:stun.l.google.com:19302' }]}
+                });
+
+                state.peer.on('open', () => {
+                    const targetHostId = 'mastery-quiz-' + state.roomCode;
+                    state.hostConn = state.peer.connect(targetHostId);
+
+                    state.hostConn.on('open', () => {
+                        activateStudentBuzzerUI();
+                        state.hostConn.send({
+                            type: 'STUDENT_JOIN',
+                            team: state.studentMyTeam
+                        });
+                    });
+
+                    state.hostConn.on('data', (data) => {
+                        handleStudentNetworkData(data);
+                    });
+
+                    state.hostConn.on('close', () => {
+                        document.getElementById('student-connection-status').innerHTML = `<span class="text-rose-400">ขาดการเชื่อมต่อ (Peer)</span>`;
+                    });
+
+                    setTimeout(() => {
+                        if (!state.hostConn || !state.hostConn.open) {
+                            // Local fallback activate
+                            activateStudentBuzzerUI();
+                        }
+                    }, 2000);
+                });
+
+                state.peer.on('error', (err) => {
+                    console.warn('PeerJS fallback activation:', err);
+                    activateStudentBuzzerUI();
+                });
+            } catch (err) {
+                activateStudentBuzzerUI();
+            }
+        }
+
+        function activateStudentBuzzerUI() {
+            document.getElementById('student-join-box').classList.add('hidden');
+            document.getElementById('student-buzzer-box').classList.remove('hidden');
+            document.getElementById('student-team-badge').innerText = state.studentMyTeam.name;
+
+            // Send Join notification via BroadcastChannel
+            if (state.broadcastChannel) {
+                state.broadcastChannel.postMessage({
+                    type: 'STUDENT_JOIN',
+                    team: state.studentMyTeam
+                });
+            }
+        }
+
+        function triggerStudentBuzz() {
+            if (!state.studentMyTeam) return;
+
+            if (navigator.vibrate) {
+                navigator.vibrate(100);
+            }
+
+            const buzzPayload = {
+                type: 'BUZZ_PRESS',
+                team: state.studentMyTeam,
+                timestamp: Date.now()
+            };
+
+            if (state.hostConn && state.hostConn.open) {
+                try { state.hostConn.send(buzzPayload); } catch (e) {}
+            }
+
+            if (state.broadcastChannel) {
+                try { state.broadcastChannel.postMessage(buzzPayload); } catch (e) {}
+            }
+
+            const btn = document.getElementById('main-buzzer-btn');
+            btn.disabled = true;
+            document.getElementById('student-status-text').innerText = '⚡ คุณกด Buzz แล้ว! รอผลหน้าจอ...';
+        }
+
+        /* ==========================================================================
+           NETWORK MESSAGE ROUTERS (Host <-> Student)
+           ========================================================================== */
+        function handleHostNetworkData(data, conn) {
+            if (data.type === 'STUDENT_JOIN') {
+                const exists = state.teams.some(t => t.id === data.team.id || t.name === data.team.name);
+                if (!exists) {
+                    state.teams.push(data.team);
+                    renderScoreboard();
+                    renderSetupTeamsList();
+                }
+            } else if (data.type === 'BUZZ_PRESS') {
+                if (!state.buzzerLocked && !state.activeBuzzerTeam) {
+                    state.buzzerLocked = true;
+                    state.activeBuzzerTeam = data.team;
+                    clearInterval(state.timerInterval);
+
+                    AudioFX.playBuzzer();
+
+                    const winnerPanel = document.getElementById('buzzer-winner-panel');
+                    document.getElementById('buzzer-winner-team').innerText = data.team.name;
+                    winnerPanel.classList.remove('hidden');
+
+                    broadcastToStudents({
+                        type: 'BUZZER_LOCKED_IN',
+                        winnerTeam: data.team
+                    });
+                }
+            }
+        }
+
+        function handleStudentNetworkData(data) {
+            const btn = document.getElementById('main-buzzer-btn');
+            const statusText = document.getElementById('student-status-text');
+
+            if (data.type === 'QUESTION_OPENED') {
+                btn.disabled = false;
+                statusText.innerText = `🔥 คำถามเปิดแล้ว (${data.points} คะแนน) กด BUZZ ด่วน!`;
+                statusText.className = "text-amber-300 font-bold text-sm h-12 flex items-center justify-center bg-amber-950/40 rounded-xl px-3 border border-amber-500/40 animate-pulse";
+            } else if (data.type === 'BUZZER_LOCKED_IN') {
+                btn.disabled = true;
+                if (data.winnerTeam.id === state.studentMyTeam.id) {
+                    statusText.innerText = '🎉 คุณกดได้ไวที่สุด! ตอบคำถามเลย!';
+                    statusText.className = "text-emerald-300 font-bold text-sm h-12 flex items-center justify-center bg-emerald-950/50 rounded-xl px-3 border border-emerald-500";
+                } else {
+                    statusText.innerText = `ทีม ${data.winnerTeam.name} กดได้เร็วกว่า!`;
+                    statusText.className = "text-slate-400 text-sm h-12 flex items-center justify-center bg-slate-900/50 rounded-xl px-3 border border-slate-800";
+                }
+            } else if (data.type === 'REOPEN_BUZZER') {
+                btn.disabled = false;
+                statusText.innerText = '⚡ ปลดล็อก Buzzer! ให้ทีมอื่นแย่งตอบต่อได้!';
+                statusText.className = "text-amber-300 font-bold text-sm h-12 flex items-center justify-center bg-amber-950/40 rounded-xl px-3 border border-amber-500/40 animate-pulse";
+            } else if (data.type === 'TIME_EXPIRED' || data.type === 'QUESTION_CLOSED') {
+                btn.disabled = true;
+                statusText.innerText = 'รอครูเปิดแผ่นป้ายคำถาม...';
+                statusText.className = "text-slate-300 font-semibold text-sm h-12 flex items-center justify-center bg-slate-900/50 rounded-xl px-3 border border-slate-800";
+            } else if (data.type === 'TEAM_LIST_UPDATE') {
+                state.teams = data.teams;
+            }
+        }
+
+        /* ==========================================================================
+           MANUAL BUZZERS FOR SINGLE SCREEN / OFFLINE MODE
+           ========================================================================== */
+        function toggleOfflineBuzzerModal() {
+            const modal = document.getElementById('modal-offline-buzzers');
+            const container = document.getElementById('manual-buzzers-list');
+            modal.classList.toggle('hidden');
+
+            if (!modal.classList.contains('hidden')) {
+                container.innerHTML = state.teams.map((t, idx) => {
+                    const color = TEAM_COLORS[t.colorIdx];
+                    return `
+                    <button onclick="triggerManualBuzz('${t.id}')" class="p-4 rounded-xl font-bold text-white shadow-lg ${color.bg} hover:opacity-90 flex items-center justify-between">
+                        <span class="flex items-center gap-2"><i data-lucide="zap" class="w-5 h-5 fill-white"></i> ${t.name}</span>
+                        <span class="bg-black/30 px-2 py-0.5 rounded text-xs">กด [${idx + 1}]</span>
+                    </button>`;
+                }).join('');
+                lucide.createIcons();
+            }
+        }
+
+        function triggerManualBuzz(teamId) {
+            const team = state.teams.find(t => t.id === teamId);
+            if (team) {
+                handleHostNetworkData({
+                    type: 'BUZZ_PRESS',
+                    team: team,
+                    timestamp: Date.now()
+                });
+                const modal = document.getElementById('modal-offline-buzzers');
+                if (modal && !modal.classList.contains('hidden')) {
+                    modal.classList.add('hidden');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
